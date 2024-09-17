@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Image, StyleSheet, Text, FlatList, View, TouchableOpacity, Dimensions, Animated, ScrollView } from 'react-native';
+import { Image, StyleSheet, Text, FlatList, View, TouchableOpacity, Dimensions, Animated, ScrollView, Alert } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
+import { LinearGradient } from 'expo-linear-gradient';
 
 // Get screen dimensions for responsiveness
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -12,6 +13,7 @@ export default function HomeScreen() {
   const [previousNumber, setPreviousNumber] = useState<number | null>(null);
   const [clickCount, setClickCount] = useState(0);
   const [selectedNumber, setSelectedNumber] = useState<number | null>(null);
+  const [incomingNumbers, setIncomingNumbers] = useState<number[]>([]);
 
   const generateNumber = () => {
     if (numbersCalled.length === 90) {
@@ -21,11 +23,14 @@ export default function HomeScreen() {
 
     let newNumber;
     do {
-      newNumber = Math.floor(Math.random() * 90) + 1;
-    } while (numbersCalled.includes(newNumber));
+      if (incomingNumbers.length !== 0) {
+        newNumber = incomingNumbers.shift();
+      }
+      else newNumber = Math.floor(Math.random() * 90) + 1;
+    } while (numbersCalled.includes(newNumber!));
     setPreviousNumber(currentNumber);
-    setNumbersCalled((prev) => [...prev, newNumber]);
-    setCurrentNumber(newNumber);
+    setNumbersCalled((prev) => [...prev, newNumber!]);
+    setCurrentNumber(newNumber!);
   };
 
   const currentNumberAnim = useRef(new Animated.Value(0)).current;
@@ -35,26 +40,48 @@ export default function HomeScreen() {
       Animated.spring(currentNumberAnim, {
         toValue: 1,
         useNativeDriver: true,
+        speed: 70,      // Adjust this to increase/decrease speed
+        bounciness: 0,  // Adjust for how bouncy the animation feels
+        // You can also use `friction` and `tension` as alternatives
       }).start(() => {
-        currentNumberAnim.setValue(0);
+        currentNumberAnim.setValue(0); // Reset the animation after completion
       });
     }
   }, [currentNumber]);
 
   const restartGame = () => {
-    setNumbersCalled([]);
-    setCurrentNumber(null);
-    setPreviousNumber(null);
+    Alert.alert(
+      "Confirm Restart",
+      "Are you sure you want to restart the game?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel"
+        },
+        {
+          text: "Restart",
+          onPress: () => {
+            // Reset game state
+            setNumbersCalled([]);
+            setCurrentNumber(null);
+            setPreviousNumber(null);
+            setIncomingNumbers([]);
+          }
+        }
+      ]
+    );
   };
 
   const handleNumberPress = (number: number) => {
     if (number === selectedNumber) {
       setClickCount(clickCount + 1);
       if (clickCount + 1 === 3) {
-        if (!numbersCalled.includes(number)) {
-          setNumbersCalled((prev) => [...prev, number]);
-          setPreviousNumber(currentNumber);
-          setCurrentNumber(number);
+        if (!incomingNumbers.includes(number)) {
+          setIncomingNumbers((prev) => [...prev, number]);
+
+          // setNumbersCalled((prev) => [...prev, number]);
+          // setPreviousNumber(currentNumber);
+          // setCurrentNumber(number);
         }
         setClickCount(0);
         setSelectedNumber(null);
@@ -64,6 +91,7 @@ export default function HomeScreen() {
       setClickCount(1);
     }
   };
+  console.log(incomingNumbers);
 
   useEffect(() => {
     if (clickCount > 0) {
@@ -82,6 +110,7 @@ export default function HomeScreen() {
         style={[styles.numberBox, isCalled ? styles.calledNumber : {}]}
         onPress={() => handleNumberPress(number)}
         disabled={isCalled}
+        activeOpacity={1}
       >
         <Text style={styles.numberText}>{number}</Text>
       </TouchableOpacity>
@@ -89,75 +118,71 @@ export default function HomeScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.scrollContainer}>
-      <ThemedView style={styles.container}>
-        <Image
-          source={require('@/assets/images/bg.avif')}
-          style={[StyleSheet.absoluteFillObject, { width: screenWidth, height: screenHeight }]}
-          resizeMode="cover"
+    <ThemedView style={styles.container}>
+      <Image
+        source={require('@/assets/images/BG.png')}
+        style={[StyleSheet.absoluteFillObject, { width: screenWidth, height: "auto" }]}
+        resizeMode="cover"
+      />
+
+      <ThemedText style={styles.title}>Tambola</ThemedText>
+
+      <ThemedView style={styles.gameContainer}>
+        {currentNumber &&
+          <LinearGradient
+            colors={['#0025f4', '#cb1065']} // Start and end colors
+            style={styles.button}
+          >
+            <TouchableOpacity onPress={restartGame}>
+              <Text style={styles.buttonText}>Restart</Text>
+            </TouchableOpacity>
+          </LinearGradient>}
+
+        <View style={styles.numberDisplayContainer}>
+          <LinearGradient
+            style={[
+              styles.previousNumber,
+            ]}
+            colors={['#cb1065', '#3d0b8e']}
+          >
+            <Text style={[
+              styles.previousNumberText,
+            ]}       >
+              {previousNumber ? previousNumber : ''}
+            </Text>
+          </LinearGradient>
+          <Animated.View style={{
+            transform: [
+              {
+                scale: currentNumberAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [1.1, 0.9],
+                }),
+              },
+            ],
+          }}><LinearGradient
+            style={[
+              styles.currentNumber,
+            ]}
+            colors={['#cb1065', '#3d0b8e']}
+          // Start and end colors
+          >
+              <Text
+                onPress={generateNumber}
+                style={currentNumber ? styles.currentNumberText : styles.startbutton}
+              >
+                {currentNumber ? currentNumber : 'Start'}
+              </Text>
+            </LinearGradient></Animated.View>
+        </View>
+        <FlatList
+          data={Array.from({ length: 90 }, (_, i) => i + 1)}
+          keyExtractor={(item) => item.toString()}
+          numColumns={10}
+          renderItem={({ item }) => renderNumber(item)}
         />
-
-        <ThemedText style={styles.title}>Tambola</ThemedText>
-
-        <ThemedView style={styles.gameContainer}>
-          <View style={styles.numberDisplayContainer}>
-            <Animated.Text
-              style={[
-                styles.previousNumber,
-                {
-                  transform: [
-                    {
-                      scale: currentNumberAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [0.5, 1],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            >
-              {previousNumber ? previousNumber : '0'}
-            </Animated.Text>
-            <Animated.Text
-              style={[
-                styles.currentNumber,
-                {
-                  transform: [
-                    {
-                      scale: currentNumberAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [0.5, 1],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            >
-              {currentNumber ? currentNumber : '0'}
-            </Animated.Text>
-          </View>
-
-          <TouchableOpacity style={styles.button} onPress={generateNumber}>
-            <Text style={styles.buttonText}>{!currentNumber ? 'Start' : 'Pick Next Number'}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={[styles.button, styles.restartButton]} onPress={restartGame}>
-            <Text style={styles.buttonText}>Restart Game</Text>
-          </TouchableOpacity>
-
-          <ThemedText type="subtitle" style={styles.subTitle}>
-            Numbers Called ({numbersCalled.length}/90)
-          </ThemedText>
-
-          <FlatList
-            data={Array.from({ length: 90 }, (_, i) => i + 1)}
-            keyExtractor={(item) => item.toString()}
-            numColumns={10}
-            renderItem={({ item }) => renderNumber(item)}
-          />
-        </ThemedView>
       </ThemedView>
-    </ScrollView>
+    </ThemedView>
   );
 }
 
@@ -171,6 +196,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   title: {
+    paddingTop: 20,
     fontSize: screenWidth * 0.09,
     fontWeight: 'bold',
     color: '#FFFFFF',
@@ -179,38 +205,58 @@ const styles = StyleSheet.create({
   },
   gameContainer: {
     gap: 8,
-    padding: screenWidth * 0.05,
+    paddingTop: 20,
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    backgroundColor: 'transparent',
     borderRadius: 20,
   },
   numberDisplayContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    width: '100%',
+    paddingLeft: 22,
+    // backgroundColor: "red",
     marginBottom: screenHeight * 0.02,
+    marginLeft: screenHeight * 0.06,
   },
-  currentNumber: {
+  currentNumberText: {
     fontSize: screenWidth * 0.15,
     fontWeight: 'bold',
     color: '#FFFFFF',
-    backgroundColor: '#ff6347',
+    textAlign: 'center'
+
+  },
+  previousNumberText: {
+    fontSize: screenWidth * 0.1,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    textAlign: 'center'
+  },
+  currentNumber: {
+
+    // backgroundColor: '#ff6347',
     paddingHorizontal: screenWidth * 0.05,
     paddingVertical: screenHeight * 0.02,
     borderRadius: 10,
     marginLeft: screenWidth * 0.02,
+    width: 116,
+    height: 116,
+    marginStart: 5,
   },
   previousNumber: {
     fontSize: screenWidth * 0.1,
     fontWeight: 'bold',
     color: '#FFFFFF',
-    backgroundColor: '#00CED1',
+    backgroundColor: '#b3b2b2',
     paddingHorizontal: screenWidth * 0.03,
     paddingVertical: screenHeight * 0.01,
     borderRadius: 10,
+    width: 80,
+    height: 80,
+    opacity: 0.5,
+    textAlign: 'center'
   },
   button: {
-    backgroundColor: '#1E90FF',
     padding: screenHeight * 0.02,
     borderRadius: 10,
     width: '80%',
@@ -222,27 +268,37 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontWeight: 'bold',
   },
-  restartButton: {
-    backgroundColor: '#FF6347',
-  },
   subTitle: {
     marginTop: screenHeight * 0.02,
     fontSize: screenWidth * 0.05,
     fontWeight: '600',
   },
   numberBox: {
-    width: screenWidth * 0.068,
-    height: screenWidth * 0.069,
+    width: screenWidth * 0.071,
+    height: screenWidth * 0.078,
     justifyContent: 'center',
     alignItems: 'center',
     margin: screenWidth * 0.01,
-    backgroundColor: '#ADD8E6',
+    // backgroundColor: '#ADD8E6',
+    borderColor: 'white',
+    borderWidth: 1,
     borderRadius: 5,
   },
   calledNumber: {
-    backgroundColor: '#FFD700',
+    backgroundColor: '#D30957',
   },
   numberText: {
-    fontSize: screenWidth * 0.04,
+    fontSize: screenWidth * 0.027,
+    color: '#ffffff',
   },
+  startbutton: {
+    color: '#ffffff',
+    textAlign: 'center',
+    height: '100%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: 28,
+    paddingTop: 20,
+  }
 });

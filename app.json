@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "tambola_ReactNative",
+    "name": "Tambola",
     "displayName": "Tambola",
     "slug": "tambola_ReactNative",
     "version": "1.0.0",
@@ -18,7 +18,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#ffffff"
       },
       "package": "com.hartejamritsar.tambola_ReactNative"
@@ -26,7 +26,7 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/iconT.png"
+      "favicon": "./assets/images/icon.png"
     },
     "plugins": [
       "expo-router"
